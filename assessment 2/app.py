@@ -3,7 +3,7 @@ import gooeypie as gp
 WIDTH = 500
 HEIGHT = 700
 
-
+print("hello world")
 app = gp.GooeyPieApp("Password Checker")
 app.set_grid(5, 3)
 
