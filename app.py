@@ -3,8 +3,8 @@ import gooeypie as gp
 
 
 app = gp.GooeyPieApp("Password Checker")
-app.width = 1200
-app.height = 600
+app.width = 1150
+app.height = 650
 app.set_grid(7, 3)
 
 
@@ -12,9 +12,10 @@ def toggle_pwd_visibility(event):
     password_input.toggle()
 
 def progress_bar_update(score):
-    max_score = 5
-    percent = int(score / max_score) * 100
+    max_score = 7
+    percent = int((score / max_score) * 100)
     progress_bar.value = max(0, min(percent, 100))
+    print(progress_bar.value)
 
 def update_pwd_length(event):
     pwd = password_input.text
@@ -24,6 +25,7 @@ def update_pwd_length(event):
         pwd_len_lbl.text = f"Length: {len(pwd)} characters"
         
     check_password(event)  
+
 
 def check_password(event): # check password strength
     pwd = password_input.text
@@ -40,10 +42,10 @@ def check_password(event): # check password strength
         score += 3
     elif len(pwd)>= 10:
         score += 2
-        feedback.append("- Consider using 12+ characters")
+        feedback.append("- Consider using more characters")
     elif len(pwd) >= 8:
         score += 1
-        feedback.append("- Consider using 12+ characters")
+        feedback.append("- Consider using more characters")
     elif len(pwd) >= 6:
         weakness_feedback.append("- Include 8 characters")
         major_weakness = True
@@ -86,14 +88,16 @@ def check_password(event): # check password strength
         score = 0
     if major_weakness == True:
         score = max(0, score - 1)
+    
+    # Update status label
+    strength_status(event, score)
         
-
     # run progress bar 
     progress_bar_update(score)
 
     # display feedback 
     if critical_feedback == []:
-        display_critical.text = "No critical feedback"
+        display_critical.text = "No required components missing"
     else: 
         display_critical.text = "\n".join(critical_feedback)
 
@@ -144,16 +148,28 @@ def check_dictionary_words(pwd, critical_fail, critical_feedback):
     
     return critical_fail, critical_feedback
       
-
-
+def strength_status(event, score):
+    if score == 7: 
+        status_lbl.text = "Very Strong"
+        status_lbl.color = "#48ff00"
+    elif score == 6: 
+        status_lbl.text = "Strong"
+        status_lbl.color = "#2f7812"
+    elif score == 5:
+        status_lbl.text = "Mediocre"
+        status_lbl.color = "#b9e320"
+    elif score > 3:
+        status_lbl.text = "Weak"
+        status_lbl.color = "#ff9100"
+    elif score > 1: 
+        status_lbl.text = "Very Weak"
+        status_lbl.color = "#ff0000"
+    elif score >= 0:
+        status_lbl.text = "Never use this password"
+        status_lbl.color = "#ff0000"
+        
 
 # labels 
-
-# styled_label = gp.StyleLabel(app, "PASSWORD STRENGTHENER")
-# styled_label.font_name = "Aerial"
-# styled_label.color = "red"
-# styled_label.font_size = 20
-# styled_label.align = 'right'
 
 ### Test Label
 heading_label = gp.StyleLabel(app, 'Password Strengthener')
@@ -178,9 +194,9 @@ submit_btn = gp.Button(display_button, "Check", update_pwd_length)
 
 # Container for the progress bar and status messages
 status_bar = gp.Container(app)
-status_lbl = gp.StyleLabel(app, "<status>")
-status_lbl.font_name = "Aerial"
-status_lbl.font_size = 20
+status_lbl = gp.StyleLabel(app, "No Password")
+status_lbl.font_name = 'Noto Sans Myanmar' 
+status_lbl.font_size = 25
 progress_bar = gp.Progressbar(app, mode="determinate")
 
 # suggestions_lbl = gp.Label(app, "Suggestions:")
@@ -188,7 +204,7 @@ fail_lbl = gp.StyleLabel(app, "Required components")
 fail_lbl.font_size = 20
 weakness_lbl = gp.StyleLabel(app, "Major Weakness")
 weakness_lbl.font_size = 20
-sugesstions_lbl = gp.StyleLabel(app, "suggestions")
+sugesstions_lbl = gp.StyleLabel(app, "Suggestions")
 sugesstions_lbl.font_size = 20
 
 # result_lbl= gp.Label(app, "")
