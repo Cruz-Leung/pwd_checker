@@ -3,7 +3,7 @@ import gooeypie as gp
 
 
 app = gp.GooeyPieApp("Password Checker")
-app.width = 800
+app.width = 1200
 app.height = 600
 app.set_grid(7, 3)
 
@@ -13,9 +13,19 @@ def toggle_pwd_visibility(event):
 
 def progress_bar_update(score):
     max_score = 5
-    progress_bar.value = (score / max_score) * 100
+    percent = int(score / max_score) * 100
+    progress_bar.value = max(0, min(percent, 100))
 
-def check_password_length(event): # check password strength
+def update_pwd_length(event):
+    pwd = password_input.text
+    if len(pwd) == 0:
+        pwd_len_lbl.text = "0"
+    else:
+        pwd_len_lbl.text = f"Length: {len(pwd)} characters"
+        
+    check_password(event)  
+
+def check_password(event): # check password strength
     pwd = password_input.text
     score = 0
     progress_bar.value = 0
@@ -36,10 +46,10 @@ def check_password_length(event): # check password strength
         feedback.append("- Consider using 12+ characters")
     elif len(pwd) >= 6:
         weakness_feedback.append("- Include 8 characters")
-        critical_fail = True
-    else:
-        critical_feedback.append("- INCLUDE 8 CHARACTERS")
         major_weakness = True
+    else:
+        critical_feedback.append("- Include 8 characters")
+        critical_fail = True
     
 
    # letter check
@@ -70,6 +80,7 @@ def check_password_length(event): # check password strength
 
     # Check for common passwords
     critical_fail, critical_feedback = check_common_pwds(pwd, critical_fail, critical_feedback) 
+    critical_fail, critical_feedback = check_dictionary_words(pwd, critical_fail, critical_feedback)
 
     if critical_fail == True:
         score = 0
@@ -114,21 +125,41 @@ def check_common_pwds(pwd, critical_fail, critical_feedback):
 
     if pwd in cleaned_common_pwd:
         critical_fail = True
-        critical_feedback.append("- FOUND IN TOP 1000 PASSWORDS" + "\n  Choose something more unique")
+        critical_feedback.append("- Found in top 1000 passwords" + "\n  Choose something more unique")
+    
     return critical_fail, critical_feedback
         
+def check_dictionary_words(pwd, critical_fail, critical_feedback):
+    f = open("/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/txt_files/words_alpha.txt")
+    dictionary_words = f.readlines()
+    cleaned_dictionary_words = []
 
+    for word in dictionary_words:
+        word = word.replace("\n", "")
+        cleaned_dictionary_words.append(word)
+
+    if pwd in cleaned_dictionary_words:
+        critical_fail = True
+        critical_feedback.append("- Found in dictionary words" + "\n  Choose something more unique")
+    
+    return critical_fail, critical_feedback
+      
 
 
 
 # labels 
 
-styled_label = gp.StyleLabel(app, "PASSWORD STRENGTHENER")
-styled_label.font_name = "Aerial"
-styled_label.color = "red"
-styled_label.font_size = 20
-styled_label.align = 'right'
+# styled_label = gp.StyleLabel(app, "PASSWORD STRENGTHENER")
+# styled_label.font_name = "Aerial"
+# styled_label.color = "red"
+# styled_label.font_size = 20
+# styled_label.align = 'right'
 
+### Test Label
+heading_label = gp.StyleLabel(app, 'Password Strengthener')
+heading_label.font_name = 'Noto Sans Myanmar'
+heading_label.font_size = 32
+heading_label.font_weight = 'bold'
 
 password_lbl = gp.Label(app, "Password")
 
@@ -139,8 +170,11 @@ show_pwd = gp.Checkbox(app, "Show Password")
 show_pwd.add_event_listener("change", toggle_pwd_visibility)
 
 display_button = gp.Container(app)
-pwd_len_lbl = gp.Label(display_button, "<pwdlength>")
-submit_btn = gp.Button(display_button, "Check", check_password_length)
+pwd_len_lbl = gp.Label(display_button, "Length: 0 characters")
+submit_btn = gp.Button(display_button, "Check", update_pwd_length)
+
+
+
 
 # Container for the progress bar and status messages
 status_bar = gp.Container(app)
@@ -150,11 +184,11 @@ status_lbl.font_size = 20
 progress_bar = gp.Progressbar(app, mode="determinate")
 
 # suggestions_lbl = gp.Label(app, "Suggestions:")
-fail_lbl = gp.StyleLabel(app, "CRITICAL WEAKNESS")
+fail_lbl = gp.StyleLabel(app, "Required components")
 fail_lbl.font_size = 20
-weakness_lbl = gp.StyleLabel(app, "MAJOR WEAKNESS")
+weakness_lbl = gp.StyleLabel(app, "Major Weakness")
 weakness_lbl.font_size = 20
-sugesstions_lbl = gp.StyleLabel(app, "SUGGESTIONS")
+sugesstions_lbl = gp.StyleLabel(app, "suggestions")
 sugesstions_lbl.font_size = 20
 
 # result_lbl= gp.Label(app, "")
@@ -168,14 +202,16 @@ display_button.set_grid(1, 2)
 display_button.add(pwd_len_lbl, 1, 1, align="center")
 display_button.add(submit_btn, 1, 2, align="center")
 
+
+
 # row 1
-app.add(styled_label, 1, 2, align="center")
+app.add(heading_label, 1, 2, align="center")
 # row 2
 app.add(password_lbl, 2, 1, align="right")
 app.add(password_input, 2, 2)
 app.add(show_pwd, 2, 3, align="left")
-# row 3
 
+# row 3
 app.add(display_button, 3, 2, align="center")
 # row 4
 # app.add(status_bar, 4, 2, align="center")
