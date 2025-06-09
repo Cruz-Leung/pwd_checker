@@ -1,3 +1,6 @@
+### This file contains brecahed password data
+### implementation of csv files taken from internet and modified to suit the project
+
 import csv
 import glob
 import os

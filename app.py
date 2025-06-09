@@ -2,8 +2,9 @@ import gooeypie as gp
 from pwd_database import breached_pwd_list
 
 app = gp.GooeyPieApp("Password Checker")
-app.width = 1150
-app.height = 700
+app.width = 1200
+app.height = 750
+app.resizable_vertical = False
 app.set_grid(7, 3)
 
 
@@ -23,9 +24,14 @@ def update_pwd_length(event):
     if pwd == "":
         pwd_len_lbl.text = "Length: 0 characters"
         status_lbl.text = "No Password"
+        status_lbl.color = "#FFFFFF"
         display_critical.text = ""
         display_weakness.text = ""
         display_suggestion.text = "" 
+        breach_lbl.text = "Breach Status: Unknown"
+        breach_lbl.color = "#FFFFFF"
+        breach_message.text = ""
+
         return 0
     else:
         pwd_len_lbl.text = f"Length: {len(pwd)} characters"
