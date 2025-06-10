@@ -1,10 +1,10 @@
 import gooeypie as gp
+import re
 from pwd_database import breached_pwd_list
 
 app = gp.GooeyPieApp("Password Checker")
 app.width = 1200
 app.height = 750
-app.resizable_vertical = False
 app.set_grid(7, 3)
 
 
@@ -16,7 +16,7 @@ def progress_bar_update(score):
     percent = int((score / max_score) * 100)
     progress_bar.value = max(0, min(percent, 100))
     
-
+### Update password length label and check password strength
 def update_pwd_length(event):
     pwd = password_input.text
 
@@ -38,7 +38,7 @@ def update_pwd_length(event):
         
     check_password(event)  
 
-
+### CHECK FOR COMMON PASSWORD REQUIREMENTS
 def check_password(event): # check password strength
     pwd = password_input.text
     score = 0
@@ -46,7 +46,7 @@ def check_password(event): # check password strength
     required_components = []
     weakness_feedback = []
     feedback = []
-    major_weakness = False
+    major_weakness_count = 0
     requirement_fail = False
     breached_fail = False
     breach_count = 0
@@ -64,7 +64,7 @@ def check_password(event): # check password strength
         feedback.append("- Consider using more characters")
     elif len(pwd) >= 6:
         weakness_feedback.append("- Include 8 characters")
-        major_weakness = True
+        major_weakness_count += 1
     else:
         required_components.append("- Include 8 characters")
         requirement_fail = True
@@ -75,20 +75,21 @@ def check_password(event): # check password strength
         score += 1
     else:
         weakness_feedback.append("- Include one number")
-        major_weakness = True
+        major_weakness_count += 1
 
     # Upper case check
     if any(char.isupper() for char in pwd):
         score += 1
     else:
         weakness_feedback.append("- Include one uppercase letter")
-        major_weakness = True
+        major_weakness_count += 1
 
     # Lower case check
     if any(char.islower() for char in pwd):
         score += 1
     else:
-        feedback.append("- Include one lowercase letter")
+        weakness_feedback.append("- Include one lowercase letter")
+        major_weakness_count += 1
 
     # Special character check
     if any(char in "!@#$%^&*()_+-=[]{}|;:',.<>/?`~" for char in pwd):
@@ -100,11 +101,12 @@ def check_password(event): # check password strength
     requirement_fail, required_components = check_common_pwds(pwd, requirement_fail, required_components) 
     requirement_fail, required_components = check_dictionary_words(pwd, requirement_fail, required_components)
     breached_fail, breach_count = breached_password_check(event, pwd, breached_fail, breach_count)
+    major_weakness_count, weakness_feedback = repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback)
 
     if requirement_fail == True:
         score = 0
-    if major_weakness == True:
-        score = max(0, score - 1)
+    score -= min(major_weakness_count, 3) # limit weakness penalty to maximum 3 points
+    score = max(score, 0)  # Ensure score is not negative
     if breached_fail == True:
         score = 0
         breach_lbl.text = "Breach Status: Breached"
@@ -141,8 +143,7 @@ def check_password(event): # check password strength
         display_suggestion.text = "\n".join(feedback)
 
 
-
-
+### CHECK FOR COMMON PASSWORDS
 def check_common_pwds(pwd, requirement_fail, required_components):
     f = open("/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/txt_files/common_pwdlist.txt")
 
@@ -159,6 +160,8 @@ def check_common_pwds(pwd, requirement_fail, required_components):
     
     return requirement_fail, required_components
         
+
+### CHECK FOR DICTIONARY WORDS
 def check_dictionary_words(pwd, requirement_fail, required_components):
     f = open("/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/txt_files/words_alpha.txt")
     dictionary_words = f.readlines()
@@ -173,6 +176,45 @@ def check_dictionary_words(pwd, requirement_fail, required_components):
         required_components.append("- Found in dictionary words" + "\n  Choose something more unique")
     
     return requirement_fail, required_components
+
+def breached_password_check(event, pwd, breached_fail, breach_count):
+    # Check if the password is in the breached password list
+    for entry in breached_pwd_list:
+        if entry['password'] == pwd:
+            breached_fail = True
+            breach_count = int(entry['count'])
+            return breached_fail, breach_count  # Return immediately if found
+    return False, 0  # Return if not found in the list
+    
+### REPEATED CHARACTER AND PATTERN CHECL
+### Looked up for python module re for regular expressions
+def repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
+
+    # Check for repeated character 
+    #i.e. "aaa", "1111", "zzzzzz"
+    if re.search(r'(.)\1{2,}', pwd):
+        major_weakness_count += 1 
+        weakness_feedback.append("- Avoid repeating the same character")
+
+    # Check for repeated patterns
+    # i.e. "abab", "123123", "xyzxyz", "abcabcabc"
+    for size in range(2, len(pwd) // 2 + 1): # Check for repeated substrings of size 2 or more until it reaches half the length of the password
+        pattern = pwd[:size] # Get pattern
+        repeats = len(pwd) // size # get possible repeats
+        if pattern * repeats == pwd[:size * repeats] and repeats >= 2: # Multiply the pattern to simulate the repeated version, compare to original password (2 or more repeats)
+            major_weakness_count += 1
+            weakness_feedback.append(f"- Repeated sequence detected: '{pattern}'")
+            break # avoid checking for more patterns if one is found
+
+    # Low diversity check, 1-3 unique characters
+    if len(set(pwd)) <= 3 and len(pwd) >= 6:  
+        major_weakness_count += 1
+        weakness_feedback.append("- Too few unique characters in the password")
+
+    return major_weakness_count, weakness_feedback  
+    
+
+
       
 def strength_status(event, score):
     if score == 7: 
@@ -194,15 +236,6 @@ def strength_status(event, score):
         status_lbl.text = "Never use this password"
         status_lbl.color = "#ff0000"
         
-def breached_password_check(event, pwd, breached_fail, breach_count):
-    # Check if the password is in the breached password list
-    for entry in breached_pwd_list:
-        if entry['password'] == pwd:
-            breached_fail = True
-            breach_count = int(entry['count'])
-            return breached_fail, breach_count  # Return immediately if found
-    return False, 0  # Not found
-
 
 # labels 
 
