@@ -1,6 +1,7 @@
 import gooeypie as gp
 import re
 from pwd_database import breached_pwd_list
+from sequential_database import sequential_patterns
 
 app = gp.GooeyPieApp("Password Checker")
 app.width = 1200
@@ -97,12 +98,14 @@ def check_password(event): # check password strength
     else:
         feedback.append("- Include one special character")
 
-    # Check for common passwords
+    ### List of password checks performed
     requirement_fail, required_components = check_common_pwds(pwd, requirement_fail, required_components) 
     requirement_fail, required_components = check_dictionary_words(pwd, requirement_fail, required_components)
     breached_fail, breach_count = breached_password_check(event, pwd, breached_fail, breach_count)
     major_weakness_count, weakness_feedback = repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback)
+    major_weakness_count, weakness_feedback = sequential_pattern_check(event, pwd, major_weakness_count, weakness_feedback)
 
+    ### Calculate final score
     if requirement_fail == True:
         score = 0
     score -= min(major_weakness_count, 3) # limit weakness penalty to maximum 3 points
@@ -123,9 +126,7 @@ def check_password(event): # check password strength
     # run progress bar 
     progress_bar_update(score)
 
-    # breach password check
    
-
     # display feedback 
     if required_components == []:
         display_critical.text = "No required components missing"
@@ -177,6 +178,7 @@ def check_dictionary_words(pwd, requirement_fail, required_components):
     
     return requirement_fail, required_components
 
+### CHECK FOR BREACHED PASSWORDS
 def breached_password_check(event, pwd, breached_fail, breach_count):
     # Check if the password is in the breached password list
     for entry in breached_pwd_list:
@@ -186,25 +188,22 @@ def breached_password_check(event, pwd, breached_fail, breach_count):
             return breached_fail, breach_count  # Return immediately if found
     return False, 0  # Return if not found in the list
     
-### REPEATED CHARACTER AND PATTERN CHECL
-### Looked up for python module re for regular expressions
+### REPEATED CHARACTER AND PATTERN CHECK
+### Looked up python module re for regular expressions with some AI assistant and self editing to suit code
 def repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
-
     # Check for repeated character 
-    #i.e. "aaa", "1111", "zzzzzz"
-    if re.search(r'(.)\1{2,}', pwd):
+    # i.e. "aaa", "1111", "zzzzzz"
+    if re.search(r'(.)\1{2,}', pwd): ### 
         major_weakness_count += 1 
         weakness_feedback.append("- Avoid repeating the same character")
 
     # Check for repeated patterns
     # i.e. "abab", "123123", "xyzxyz", "abcabcabc"
-    for size in range(2, len(pwd) // 2 + 1): # Check for repeated substrings of size 2 or more until it reaches half the length of the password
-        pattern = pwd[:size] # Get pattern
-        repeats = len(pwd) // size # get possible repeats
-        if pattern * repeats == pwd[:size * repeats] and repeats >= 2: # Multiply the pattern to simulate the repeated version, compare to original password (2 or more repeats)
-            major_weakness_count += 1
-            weakness_feedback.append(f"- Repeated sequence detected: '{pattern}'")
-            break # avoid checking for more patterns if one is found
+    # Check for repeated substrings (like "abcabcabc")
+    if re.search(r'(.+?)\1{2,}', pwd):
+    ## Code explaination: (.+?) captures any sequence of 1 or more characters ## \1{2,} looks for it to repeat at least 2 more times consecutively
+        major_weakness_count += 1
+        weakness_feedback.append("- Repeated sequence detected")
 
     # Low diversity check, 1-3 unique characters
     if len(set(pwd)) <= 3 and len(pwd) >= 6:  
@@ -213,9 +212,15 @@ def repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
 
     return major_weakness_count, weakness_feedback  
     
+def sequential_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
+    lower_pwd = pwd.lower()
+    for pattern in sequential_patterns:
+        if pattern in lower_pwd:
+            major_weakness_count += 1
+            weakness_feedback.append(f"- Sequential patterns like '{pattern}'")
+            break
+    return major_weakness_count, weakness_feedback
 
-
-      
 def strength_status(event, score):
     if score == 7: 
         status_lbl.text = "Very Strong"
