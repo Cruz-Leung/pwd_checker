@@ -70,7 +70,7 @@ def check_password(event): # check password strength
         required_components.append("- Include 8 characters")
         requirement_fail = True
     
-
+    ## Basic character checks
    # letter check
     if any(char.isdigit() for char in pwd):
         score += 1
@@ -103,12 +103,12 @@ def check_password(event): # check password strength
     requirement_fail, required_components = check_dictionary_words(pwd, requirement_fail, required_components)
     breached_fail, breach_count = breached_password_check(event, pwd, breached_fail, breach_count)
     major_weakness_count, weakness_feedback = repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback)
-    major_weakness_count, weakness_feedback = sequential_pattern_check(event, pwd, major_weakness_count, weakness_feedback)
+   
 
     ### Calculate final score
     if requirement_fail == True:
         score = 0
-    score -= min(major_weakness_count, 3) # limit weakness penalty to maximum 3 points
+    score -= min(major_weakness_count, 4) # limit weakness penalty to maximum 3 points
     score = max(score, 0)  # Ensure score is not negative
     if breached_fail == True:
         score = 0
@@ -146,8 +146,9 @@ def check_password(event): # check password strength
 
 ### CHECK FOR COMMON PASSWORDS
 def check_common_pwds(pwd, requirement_fail, required_components):
-    f = open("/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/txt_files/common_pwdlist.txt")
+    lower_pwd = pwd.lower()
 
+    f = open("/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/txt_files/common_pwdlist.txt") # Stored in file "txt_files"
     common_passwords = f.readlines()
     cleaned_common_pwd = []
 
@@ -155,7 +156,7 @@ def check_common_pwds(pwd, requirement_fail, required_components):
         password = password.replace("\n", "")
         cleaned_common_pwd.append(password)
 
-    if pwd in cleaned_common_pwd:
+    if pwd in cleaned_common_pwd or lower_pwd in cleaned_common_pwd:
         requirement_fail = True
         required_components.append("- Found in top passwords" + "\n  Choose something more unique")
     
@@ -164,6 +165,8 @@ def check_common_pwds(pwd, requirement_fail, required_components):
 
 ### CHECK FOR DICTIONARY WORDS
 def check_dictionary_words(pwd, requirement_fail, required_components):
+    lower_pwd = pwd.lower()
+
     f = open("/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/txt_files/words_alpha.txt")
     dictionary_words = f.readlines()
     cleaned_dictionary_words = []
@@ -172,7 +175,7 @@ def check_dictionary_words(pwd, requirement_fail, required_components):
         word = word.replace("\n", "")
         cleaned_dictionary_words.append(word)
 
-    if pwd in cleaned_dictionary_words:
+    if pwd in cleaned_dictionary_words or lower_pwd in cleaned_dictionary_words:
         requirement_fail = True
         required_components.append("- Found in dictionary words" + "\n  Choose something more unique")
     
@@ -180,9 +183,11 @@ def check_dictionary_words(pwd, requirement_fail, required_components):
 
 ### CHECK FOR BREACHED PASSWORDS
 def breached_password_check(event, pwd, breached_fail, breach_count):
+    lower_pwd = pwd.lower()
+
     # Check if the password is in the breached password list
     for entry in breached_pwd_list:
-        if entry['password'] == pwd:
+        if entry['password'] == lower_pwd or entry['password'] == pwd:
             breached_fail = True
             breach_count = int(entry['count'])
             return breached_fail, breach_count  # Return immediately if found
@@ -191,35 +196,40 @@ def breached_password_check(event, pwd, breached_fail, breach_count):
 ### REPEATED CHARACTER AND PATTERN CHECK
 ### Looked up python module re for regular expressions with some AI assistant and self editing to suit code
 def repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
+    lower_pwd = pwd.lower()
+    
     # Check for repeated character 
     # i.e. "aaa", "1111", "zzzzzz"
-    if re.search(r'(.)\1{2,}', pwd): ### 
-        major_weakness_count += 1 
+    if re.search(r'(.)\1{2,}', lower_pwd): 
+        major_weakness_count += 2
         weakness_feedback.append("- Avoid repeating the same character")
 
     # Check for repeated patterns
     # i.e. "abab", "123123", "xyzxyz", "abcabcabc"
     # Check for repeated substrings (like "abcabcabc")
-    if re.search(r'(.+?)\1{2,}', pwd):
+    if re.search(r'(.+?)\1{1,}', lower_pwd):
     ## Code explaination: (.+?) captures any sequence of 1 or more characters ## \1{2,} looks for it to repeat at least 2 more times consecutively
-        major_weakness_count += 1
+        major_weakness_count += 2
         weakness_feedback.append("- Repeated sequence detected")
 
     # Low diversity check, 1-3 unique characters
     if len(set(pwd)) <= 3 and len(pwd) >= 6:  
-        major_weakness_count += 1
+        major_weakness_count += 2
         weakness_feedback.append("- Too few unique characters in the password")
 
-    return major_weakness_count, weakness_feedback  
-    
-def sequential_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
-    lower_pwd = pwd.lower()
+    # sequential patterns check
+    sequential_pattern = 0
     for pattern in sequential_patterns:
         if pattern in lower_pwd:
-            major_weakness_count += 1
-            weakness_feedback.append(f"- Sequential patterns like '{pattern}'")
-            break
+            sequential_pattern += 1
+            weakness_feedback.append(f"- Sequential patterns '{pattern}' detected")
+
+    if sequential_pattern > 0:
+        major_weakness_count += max(sequential_pattern, 3)
+
     return major_weakness_count, weakness_feedback
+    
+
 
 def strength_status(event, score):
     if score == 7: 
