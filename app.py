@@ -1,12 +1,17 @@
 import gooeypie as gp
 import re
-from pwd_database import breached_pwd_list
 from sequential_database import sequential_patterns
+import pyhibp
+from pyhibp import pwnedpasswords as pw
+import hashlib
+import requests
+
 
 app = gp.GooeyPieApp("Password Checker")
 app.width = 1200
-app.height = 750
+app.height = 700
 app.set_grid(7, 3)
+
 
 
 def toggle_pwd_visibility(event):
@@ -32,15 +37,14 @@ def update_pwd_length(event):
         breach_lbl.text = "Breach Status: Unknown"
         breach_lbl.color = "#FFFFFF"
         breach_message.text = ""
-
         return 0
     else:
         pwd_len_lbl.text = f"Length: {len(pwd)} characters"
         
-    check_password(event)  
+    check_password()  
 
 ### CHECK FOR COMMON PASSWORD REQUIREMENTS
-def check_password(event): # check password strength
+def check_password(): # check password strength
     pwd = password_input.text
     score = 0
     progress_bar.value = 0
@@ -51,7 +55,7 @@ def check_password(event): # check password strength
     requirement_fail = False
     breached_fail = False
     breach_count = 0
-
+    password_cache = {}
     
     
     # length check
@@ -101,27 +105,39 @@ def check_password(event): # check password strength
     ### List of password checks performed
     requirement_fail, required_components = check_common_pwds(pwd, requirement_fail, required_components) 
     requirement_fail, required_components = check_dictionary_words(pwd, requirement_fail, required_components)
-    breached_fail, breach_count = breached_password_check(event, pwd, breached_fail, breach_count)
-    major_weakness_count, weakness_feedback = repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback)
-   
+    # breached_fail, breach_message = breached_password_check(pwd, breached_fail)
+    major_weakness_count, weakness_feedback = repeated_pattern_check(pwd, major_weakness_count, weakness_feedback)
+    # response = pwned_passwords_api_call(pwd)
 
     ### Calculate final score
     if requirement_fail == True:
         score = 0
+    try:
+        response = check_password_pwned(pwd, password_cache)
+    except Exception as e:
+        print(f"API error: {e}")
+        response = -1
+
     score -= min(major_weakness_count, 4) # limit weakness penalty to maximum 3 points
     score = max(score, 0)  # Ensure score is not negative
-    if breached_fail == True:
+
+    
+    if response == -1:
+        breach_lbl.text = "Breach Status: Error"
+        breach_lbl.color = "#ffa500"
+        breach_message.text = "Error checking password breach status."
+    elif response > 0:
         score = 0
         breach_lbl.text = "Breach Status: Breached"
         breach_lbl.color = "#ff0000"
-        breach_message.text = f"Password has appeared in known data breaches {breach_count} times" 
+        breach_message.text = f"This password was found in {response} known data breaches."
     else: 
         breach_lbl.text = "Breach Status: Not Breached"
         breach_lbl.color = "#48ff00"
         breach_message.text = "Password not found in known data breaches."
 
     # Update status label
-    strength_status(event, score)
+    strength_status(score)
         
     # run progress bar 
     progress_bar_update(score)
@@ -181,23 +197,54 @@ def check_dictionary_words(pwd, requirement_fail, required_components):
     
     return requirement_fail, required_components
 
-### CHECK FOR BREACHED PASSWORDS
-def breached_password_check(event, pwd, breached_fail, breach_count):
-    lower_pwd = pwd.lower()
+def check_password_pwned(pwd, password_cache):
+    if pwd in password_cache:
+        return password_cache[pwd]
+    
+    sha1_password = hashlib.sha1(pwd.encode('utf-8')).hexdigest().upper()
+    prefix = sha1_password[:5]
+    suffix = sha1_password[5:]
 
-    # Check if the password is in the breached password list
-    for entry in breached_pwd_list:
-        if entry['password'] == lower_pwd or entry['password'] == pwd:
-            breached_fail = True
-            breach_count = int(entry['count'])
-            return breached_fail, breach_count  # Return immediately if found
-    return False, 0  # Return if not found in the list
+    url = f"https://api.pwnedpasswords.com/range/{prefix}"
+    res = requests.get(url)
+    if res.status_code != 200:
+        raise RuntimeError(f"Error fetching: {res.status_code}")
+
+    hashes = (line.split(':') for line in res.text.splitlines())
+    for h, count in hashes:
+        if h == suffix:
+            password_cache[pwd] = 0
+            return int(count)  # Number of times password was found
+    return 0  # Password not found
+
+# def pwned_passwords_api_call(pwd: str, ):
+#     """
+#     Example of how to use the Pwned Passwords API to check if a password has been
+#     compromised in a data breach.
+
+#     :param password: The password to check.
+#     """
+
+    
+#     # If the response is not None, it means the password has been breached
+#     try:
+#         response = pw.is_password_breached(password=pwd)
+#         return response if response is not None else 0
+#     except Exception as e:
+#         print(f"Error calling breach API: {e}")
+#         return -1  # Use -1 to indicate API error
+
+
+
+
     
 ### REPEATED CHARACTER AND PATTERN CHECK
 ### Looked up python module re for regular expressions with some AI assistant and self editing to suit code
-def repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
+def repeated_pattern_check(pwd, major_weakness_count, weakness_feedback):
     lower_pwd = pwd.lower()
-    
+    breached_fail = True
+#             breach_count = int(entry['count'])
+#             return breached_fail, breach_count  # Return immediately if found
     # Check for repeated character 
     # i.e. "aaa", "1111", "zzzzzz"
     if re.search(r'(.)\1{2,}', lower_pwd): 
@@ -231,7 +278,7 @@ def repeated_pattern_check(event, pwd, major_weakness_count, weakness_feedback):
     
 
 
-def strength_status(event, score):
+def strength_status(score):
     if score == 7: 
         status_lbl.text = "Very Strong"
         status_lbl.color = "#48ff00"
@@ -252,7 +299,7 @@ def strength_status(event, score):
         status_lbl.color = "#ff0000"
         
 
-# labels 
+######### LABELS AND INPUTS ##########
 
 # logo 
 logo = gp.Image(app, "/Users/cruzleung/Desktop/school/SEN/11SEN/assessment_2/pwd_checker/images/logo.png")
@@ -309,7 +356,6 @@ status_container.set_grid(3, 1)
 status_container.add(status_lbl, 1, 1, align="center")
 status_container.add(breach_lbl, 2, 1, align="center")
 status_container.add(breach_message, 3, 1, align="center")
-
 
 
 
