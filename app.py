@@ -1,7 +1,6 @@
 import gooeypie as gp
 import re
 from sequential_database import sequential_patterns
-import pyhibp
 from pyhibp import pwnedpasswords as pw
 import hashlib
 import requests
@@ -12,7 +11,9 @@ app.width = 1200
 app.height = 700
 app.set_grid(7, 3)
 
-
+def check_exit():
+    ok_to_exit = app.confirm_yesno('Really?', 'Are you sure you want to close?', 'question')
+    return ok_to_exit
 
 def toggle_pwd_visibility(event):
     password_input.toggle()
@@ -224,28 +225,6 @@ def check_password_pwned(pwd, password_cache):
     return 0  # Password not found
     
 
-
-# def pwned_passwords_api_call(pwd: str, ):
-#     """
-#     Example of how to use the Pwned Passwords API to check if a password has been
-#     compromised in a data breach.
-
-#     :param password: The password to check.
-#     """
-
-    
-#     # If the response is not None, it means the password has been breached
-#     try:
-#         response = pw.is_password_breached(password=pwd)
-#         return response if response is not None else 0
-#     except Exception as e:
-#         print(f"Error calling breach API: {e}")
-#         return -1  # Use -1 to indicate API error
-
-
-
-
-    
 ### REPEATED CHARACTER AND PATTERN CHECK
 ### Looked up python module re for regular expressions with some AI assistant and self editing to suit code
 def repeated_pattern_check(pwd, major_weakness_count, weakness_feedback):
@@ -306,6 +285,10 @@ def strength_status(score):
         status_lbl.text = "Never use this password"
         status_lbl.color = "#ff0000"
         
+def open_about_window(event):
+    about_window.show()
+
+
 
 ######### LABELS AND INPUTS ##########
 
@@ -317,6 +300,16 @@ heading_label = gp.StyleLabel(app, 'Password Strengthener')
 heading_label.font_name = 'Noto Sans Myanmar'
 heading_label.font_size = 32
 heading_label.font_weight = 'bold'
+
+# Window for about button
+about_button = gp.Button(app, "About", open_about_window)
+about_window = gp.Window(app, "Version")
+# Window 
+about_window.height = 50
+about_window.width = 300
+about_window.set_grid(1, 1)
+about_lbl = gp.Label(about_window, "        Version 1.0.0\nCreated by Cruz Leung")
+about_window.add(about_lbl, 1, 1, align="center")
 
 password_lbl = gp.Label(app, "Password")
 
@@ -370,6 +363,7 @@ status_container.add(breach_message, 3, 1, align="center")
 # row 1
 app.add(logo, 1, 1, align="right")
 app.add(heading_label, 1, 2, align="center")
+app.add(about_button, 1, 3, align="left")
 # row 2
 app.add(password_lbl, 2, 1, align="right")
 app.add(password_input, 2, 2)
@@ -395,6 +389,7 @@ app.add(display_critical, 7, 1, align="center")
 app.add(display_weakness, 7, 2, align="center")
 app.add(display_suggestion, 7, 3, align="center")
 
+app.on_close(check_exit)
 
 app.run()
 
