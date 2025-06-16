@@ -53,9 +53,8 @@ def check_password(): # check password strength
     feedback = []
     major_weakness_count = 0
     requirement_fail = False
-    breached_fail = False
-    breach_count = 0
-    password_cache = {}
+    password_cache = {}  # Cache for password breach checks
+  
     
     
     # length check
@@ -107,16 +106,18 @@ def check_password(): # check password strength
     requirement_fail, required_components = check_dictionary_words(pwd, requirement_fail, required_components)
     # breached_fail, breach_message = breached_password_check(pwd, breached_fail)
     major_weakness_count, weakness_feedback = repeated_pattern_check(pwd, major_weakness_count, weakness_feedback)
-    # response = pwned_passwords_api_call(pwd)
+    response = check_password_pwned(pwd, password_cache)
+   
+
 
     ### Calculate final score
-    if requirement_fail == True:
-        score = 0
-    try:
-        response = check_password_pwned(pwd, password_cache)
-    except Exception as e:
-        print(f"API error: {e}")
-        response = -1
+    # if requirement_fail == True:
+    #     score = 0
+    # try:
+    #     response = check_password_pwned(pwd, password_cache)
+    # except Exception as e:
+    #     print(f"API error: {e}")
+    #     response = -1
 
     score -= min(major_weakness_count, 4) # limit weakness penalty to maximum 3 points
     score = max(score, 0)  # Ensure score is not negative
@@ -206,16 +207,23 @@ def check_password_pwned(pwd, password_cache):
     suffix = sha1_password[5:]
 
     url = f"https://api.pwnedpasswords.com/range/{prefix}"
-    res = requests.get(url)
-    if res.status_code != 200:
-        raise RuntimeError(f"Error fetching: {res.status_code}")
+    try:
+        res = requests.get(url, timeout=5)
+        res.raise_for_status()
+    except requests.RequestException as e:
+        print(f"API error: {e}")
+        return -1  # Indicate error
 
     hashes = (line.split(':') for line in res.text.splitlines())
     for h, count in hashes:
         if h == suffix:
-            password_cache[pwd] = 0
+            password_cache[pwd] = int(count)
             return int(count)  # Number of times password was found
+        
+    password_cache[pwd] = 0
     return 0  # Password not found
+    
+
 
 # def pwned_passwords_api_call(pwd: str, ):
 #     """
