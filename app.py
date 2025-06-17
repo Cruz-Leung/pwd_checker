@@ -11,6 +11,7 @@ app.width = 1200
 app.height = 700
 app.set_grid(7, 3)
 
+
 def check_exit():
     ok_to_exit = app.confirm_yesno('Really?', 'Are you sure you want to close?', 'question')
     return ok_to_exit
@@ -41,11 +42,10 @@ def update_pwd_length(event):
         return 0
     else:
         pwd_len_lbl.text = f"Length: {len(pwd)} characters"
-        
-    check_password()  
+          
 
 ### CHECK FOR COMMON PASSWORD REQUIREMENTS
-def check_password(): # check password strength
+def check_password(event): # check password strength
     pwd = password_input.text
     score = 0
     progress_bar.value = 0
@@ -213,6 +213,7 @@ def check_password_pwned(pwd, password_cache):
         res.raise_for_status()
     except requests.RequestException as e:
         print(f"API error: {e}")
+        app.alert("Error", "Please try again")
         return -1  # Indicate error
 
     hashes = (line.split(':') for line in res.text.splitlines())
@@ -303,17 +304,25 @@ heading_label.font_weight = 'bold'
 
 # Window for about button
 about_button = gp.Button(app, "About", open_about_window)
-about_window = gp.Window(app, "Version")
+about_window = gp.Window(app, "About")
 # Window 
 about_window.height = 50
 about_window.width = 300
-about_window.set_grid(1, 1)
+about_window.set_grid(3, 1)
 about_lbl = gp.Label(about_window, "        Version 1.0.0\nCreated by Cruz Leung")
 about_window.add(about_lbl, 1, 1, align="center")
+usage_lbl= gp.StyleLabel(about_window, "How to use")
+usage_lbl.font_name = 'Noto Sans Myanmar'
+usage_lbl.font_size = 20
+usage_lbl.font_weight = 'bold'
+about_window.add(usage_lbl, 2, 1, align="center")
+usage_text = gp.Label(about_window, " 1. Enter a password in the input box \n 2. Click 'Check'\n 3. Follow the feedback to improve your password \n\n Note: This app does not store or save your passwords")
+about_window.add(usage_text, 3, 1, align="center")
 
 password_lbl = gp.Label(app, "Password")
 
 password_input = gp.Secret(app)
+password_input.add_event_listener('change', update_pwd_length)
 password_input.justify = 'left'
 password_input.width = 50
 show_pwd = gp.Checkbox(app, "Show Password")
@@ -322,7 +331,8 @@ show_pwd.add_event_listener("change", toggle_pwd_visibility)
 #containers
 display_button = gp.Container(app)
 pwd_len_lbl = gp.Label(display_button, "Length: 0 characters")
-submit_btn = gp.Button(display_button, "Check", update_pwd_length)
+submit_btn = gp.Button(display_button, "Check", check_password)
+
 
 status_container = gp.Container(app)
 status_lbl = gp.StyleLabel(status_container, "No Password")
