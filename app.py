@@ -1,10 +1,12 @@
 import gooeypie as gp
 import re
 from sequential_database import sequential_patterns
-from pyhibp import pwnedpasswords as pw
 import hashlib
 import requests
+import string
+from random import choice
 
+password_cache = {}  # Cache for password breach checks
 
 app = gp.GooeyPieApp("Password Checker")
 app.width = 1200
@@ -28,20 +30,7 @@ def progress_bar_update(score):
 def update_pwd_length(event):
     pwd = password_input.text
 
-    # Check if the password is empty
-    if pwd == "":
-        pwd_len_lbl.text = "Length: 0 characters"
-        status_lbl.text = "No Password"
-        status_lbl.color = "#FFFFFF"
-        display_critical.text = ""
-        display_weakness.text = ""
-        display_suggestion.text = "" 
-        breach_lbl.text = "Breach Status: Unknown"
-        breach_lbl.color = "#FFFFFF"
-        breach_message.text = ""
-        return 0
-    else:
-        pwd_len_lbl.text = f"Length: {len(pwd)} characters"
+    pwd_len_lbl.text = f"Length: {len(pwd)} characters"
           
 
 ### CHECK FOR COMMON PASSWORD REQUIREMENTS
@@ -54,9 +43,20 @@ def check_password(event): # check password strength
     feedback = []
     major_weakness_count = 0
     requirement_fail = False
-    password_cache = {}  # Cache for password breach checks
-  
     
+  
+    if pwd == "":
+        pwd_len_lbl.text = "Length: 0 characters"
+        status_lbl.text = "No Password"
+        status_lbl.color = "#FFFFFF"
+        display_critical.text = ""
+        display_weakness.text = ""
+        display_suggestion.text = "" 
+        breach_lbl.text = "Breach Status: Unknown"
+        breach_lbl.color = "#FFFFFF"
+        breach_message.text = ""
+        # progress_bar.value = 0
+        return 0
     
     # length check
     if len(pwd)>= 12:
@@ -157,7 +157,7 @@ def check_password(event): # check password strength
         display_weakness.text = "\n".join(weakness_feedback)
 
     if feedback == []:
-        display_suggestion.text = "No suggestions"
+        display_suggestion.text = "No addtional suggestions"
     else: 
         display_suggestion.text = "\n".join(feedback)
 
@@ -289,8 +289,27 @@ def strength_status(score):
 def open_about_window(event):
     about_window.show()
 
+def password_generator(event):
+    generator_window.show()
+
+def show_generated_password(event):
+    generator_input_pwd.text = generate_password()
 
 
+def generate_password(): 
+    length = 12
+    available_chars = ''
+    available_chars += string.ascii_letters
+    available_chars += string.digits * 2 + string.punctuation # double the digits to increase chance of having a number as there are only 10 digits 
+    
+    # Make the password
+    new_password = ''
+    for count in range(length):
+        new_password += choice(available_chars)
+    return new_password
+
+def copy_password(event):
+    app.copy_to_clipboard(generator_input_pwd.text)
 ######### LABELS AND INPUTS ##########
 
 # logo 
@@ -333,6 +352,26 @@ display_button = gp.Container(app)
 pwd_len_lbl = gp.Label(display_button, "Length: 0 characters")
 submit_btn = gp.Button(display_button, "Check", check_password)
 
+# Password Generator button
+pwd_generator_btn = gp.Button(display_button, "Generate Password", password_generator)
+generator_window = gp.Window(app, "Password Generator")
+generator_window.height = 50
+generator_window.width = 300
+generator_window.set_grid(4, 1)
+# Generator window
+generator_lbl = gp.StyleLabel(generator_window, "Generate Password")
+generator_lbl.font_name = 'Noto Sans Myanmar'
+generator_lbl.font_size = 20
+generator_lbl.font_weight = 'bold'
+generator_window.add(generator_lbl, 1, 1, align="center")
+generator_input_pwd = gp.Input(generator_window)
+generator_window.add(generator_input_pwd, 2, 1, fill=True, stretch=True)
+generator_window_button = gp.Button(generator_window, "Generate Password", show_generated_password)
+generator_window.add(generator_window_button, 4, 1, align="center")
+copy_btn = gp.Button(generator_window, 'Copy to Clipboard', copy_password)
+generator_window.add(copy_btn, 3, 1, align="center")
+copy_btn.width = 15
+
 
 status_container = gp.Container(app)
 status_lbl = gp.StyleLabel(status_container, "No Password")
@@ -359,9 +398,12 @@ display_suggestion = gp.Label(app, "")
 
 
 # Containers
-display_button.set_grid(2, 1)
+display_button.set_grid(3, 1)
 display_button.add(pwd_len_lbl, 1, 1, align="center")
+# Password Generator
 display_button.add(submit_btn, 2, 1, align="center")
+display_button.add(pwd_generator_btn, 3, 1, align="center")
+
 
 status_container.set_grid(3, 1)
 status_container.add(status_lbl, 1, 1, align="center")
