@@ -9,7 +9,7 @@ from random import choice
 password_cache = {}  # Cache for password breach checks
 
 app = gp.GooeyPieApp("Password Checker")
-app.width = 1200
+app.width = 950
 app.height = 700
 app.set_grid(7, 3)
 
@@ -46,10 +46,9 @@ def check_password(event): # check password strength
     
   
     if pwd == "":
-        pwd_len_lbl.text = "Length: 0 characters"
         status_lbl.text = "No Password"
         status_lbl.color = "#FFFFFF"
-        display_critical.text = ""
+        display_missing_components.text = ""
         display_weakness.text = ""
         display_suggestion.text = "" 
         breach_lbl.text = "Breach Status: Unknown"
@@ -68,10 +67,10 @@ def check_password(event): # check password strength
         score += 1
         feedback.append("- Consider using more characters")
     elif len(pwd) >= 6:
-        weakness_feedback.append("- Include 8 characters")
+        weakness_feedback.append("- Include at least 8 characters")
         major_weakness_count += 1
     else:
-        required_components.append("- Include 8 characters")
+        required_components.append("- Include at least 8 characters")
         requirement_fail = True
     
     ## Basic character checks
@@ -79,47 +78,38 @@ def check_password(event): # check password strength
     if any(char.isdigit() for char in pwd):
         score += 1
     else:
-        weakness_feedback.append("- Include one number")
+        weakness_feedback.append("- Include numbers")
         major_weakness_count += 1
 
     # Upper case check
     if any(char.isupper() for char in pwd):
         score += 1
     else:
-        weakness_feedback.append("- Include one uppercase letter")
+        weakness_feedback.append("- Include uppercase letters")
         major_weakness_count += 1
 
     # Lower case check
     if any(char.islower() for char in pwd):
         score += 1
     else:
-        weakness_feedback.append("- Include one lowercase letter")
+        weakness_feedback.append("- Include lowercase letters")
         major_weakness_count += 1
 
     # Special character check
     if any(char in "!@#$%^&*()_+-=[]{}|;:',.<>/?`~" for char in pwd):
         score += 1
     else:
-        feedback.append("- Include one special character")
+        feedback.append("- Include special characters")
 
     ### List of password checks performed
     requirement_fail, required_components = check_common_pwds(pwd, requirement_fail, required_components) 
     requirement_fail, required_components = check_dictionary_words(pwd, requirement_fail, required_components)
-    # breached_fail, breach_message = breached_password_check(pwd, breached_fail)
     major_weakness_count, weakness_feedback = repeated_pattern_check(pwd, major_weakness_count, weakness_feedback)
     response = check_password_pwned(pwd, password_cache)
    
 
 
     ### Calculate final score
-    # if requirement_fail == True:
-    #     score = 0
-    # try:
-    #     response = check_password_pwned(pwd, password_cache)
-    # except Exception as e:
-    #     print(f"API error: {e}")
-    #     response = -1
-
     score -= min(major_weakness_count, 4) # limit weakness penalty to maximum 3 points
     score = max(score, 0)  # Ensure score is not negative
 
@@ -132,7 +122,7 @@ def check_password(event): # check password strength
         score = 0
         breach_lbl.text = "Breach Status: Breached"
         breach_lbl.color = "#ff0000"
-        breach_message.text = f"This password was found in {response} known data breaches."
+        breach_message.text = f"Password found in {response} known data breaches."
     else: 
         breach_lbl.text = "Breach Status: Not Breached"
         breach_lbl.color = "#48ff00"
@@ -147,9 +137,9 @@ def check_password(event): # check password strength
    
     # display feedback 
     if required_components == []:
-        display_critical.text = "No required components missing"
+        display_missing_components.text = "No required components missing"
     else: 
-        display_critical.text = "\n".join(required_components)
+        display_missing_components.text = "\n".join(required_components)
 
     if weakness_feedback == []:
         display_weakness.text = "No major weakness"
@@ -176,7 +166,7 @@ def check_common_pwds(pwd, requirement_fail, required_components):
 
     if pwd in cleaned_common_pwd or lower_pwd in cleaned_common_pwd:
         requirement_fail = True
-        required_components.append("- Found in top passwords" + "\n  Choose something more unique")
+        required_components.append("- Found in top 10K passwords" + "\n  Choose something more unique")
     
     return requirement_fail, required_components
         
@@ -195,9 +185,49 @@ def check_dictionary_words(pwd, requirement_fail, required_components):
 
     if pwd in cleaned_dictionary_words or lower_pwd in cleaned_dictionary_words:
         requirement_fail = True
-        required_components.append("- Found in dictionary words" + "\n  Choose something more unique")
+        required_components.append("- Dictionary word detected" + "\n  Choose something more unique")
     
     return requirement_fail, required_components
+
+    
+### REPEATED CHARACTER AND PATTERN CHECK
+### Looked up python module re for regular expressions with some AI assistant and self editing to suit code
+def repeated_pattern_check(pwd, major_weakness_count, weakness_feedback):
+    lower_pwd = pwd.lower()
+    breached_fail = True
+#             breach_count = int(entry['count'])
+#             return breached_fail, breach_count  # Return immediately if found
+    # Check for repeated character 
+    # i.e. "aaa", "1111", "zzzzzz"
+    if re.search(r'(.)\1{2,}', lower_pwd): 
+        major_weakness_count += 2
+        weakness_feedback.append("- Avoid repeating the same character")
+
+    # Check for repeated patterns
+    # i.e. "abab", "123123", "xyzxyz", "abcabcabc"
+    # Check for repeated substrings (like "abcabcabc")
+    if re.search(r'(.+?)\1{1,}', lower_pwd):
+    ## Code explaination: (.+?) captures any sequence of 1 or more characters ## \1{2,} looks for it to repeat at least 2 more times consecutively
+        major_weakness_count += 1
+        weakness_feedback.append("- Repeated sequence detected")
+
+    # Low diversity check, 1-3 unique characters
+    if len(set(pwd)) <= 3 and len(pwd) >= 6:  
+        major_weakness_count += 1
+        weakness_feedback.append("- Too few unique characters in the password")
+
+    # sequential patterns check
+    sequential_pattern = 0
+    for pattern in sequential_patterns:
+        if pattern in lower_pwd:
+            sequential_pattern += 1
+            weakness_feedback.append(f"- Sequential patterns '{pattern}' detected")
+
+    if sequential_pattern > 0:
+        major_weakness_count += min(sequential_pattern, 3)
+
+    return major_weakness_count, weakness_feedback
+    
 
 def check_password_pwned(pwd, password_cache):
     if pwd in password_cache:
@@ -224,46 +254,7 @@ def check_password_pwned(pwd, password_cache):
         
     password_cache[pwd] = 0
     return 0  # Password not found
-    
 
-### REPEATED CHARACTER AND PATTERN CHECK
-### Looked up python module re for regular expressions with some AI assistant and self editing to suit code
-def repeated_pattern_check(pwd, major_weakness_count, weakness_feedback):
-    lower_pwd = pwd.lower()
-    breached_fail = True
-#             breach_count = int(entry['count'])
-#             return breached_fail, breach_count  # Return immediately if found
-    # Check for repeated character 
-    # i.e. "aaa", "1111", "zzzzzz"
-    if re.search(r'(.)\1{2,}', lower_pwd): 
-        major_weakness_count += 2
-        weakness_feedback.append("- Avoid repeating the same character")
-
-    # Check for repeated patterns
-    # i.e. "abab", "123123", "xyzxyz", "abcabcabc"
-    # Check for repeated substrings (like "abcabcabc")
-    if re.search(r'(.+?)\1{1,}', lower_pwd):
-    ## Code explaination: (.+?) captures any sequence of 1 or more characters ## \1{2,} looks for it to repeat at least 2 more times consecutively
-        major_weakness_count += 2
-        weakness_feedback.append("- Repeated sequence detected")
-
-    # Low diversity check, 1-3 unique characters
-    if len(set(pwd)) <= 3 and len(pwd) >= 6:  
-        major_weakness_count += 2
-        weakness_feedback.append("- Too few unique characters in the password")
-
-    # sequential patterns check
-    sequential_pattern = 0
-    for pattern in sequential_patterns:
-        if pattern in lower_pwd:
-            sequential_pattern += 1
-            weakness_feedback.append(f"- Sequential patterns '{pattern}' detected")
-
-    if sequential_pattern > 0:
-        major_weakness_count += max(sequential_pattern, 3)
-
-    return major_weakness_count, weakness_feedback
-    
 
 
 def strength_status(score):
@@ -335,7 +326,7 @@ usage_lbl.font_name = 'Noto Sans Myanmar'
 usage_lbl.font_size = 20
 usage_lbl.font_weight = 'bold'
 about_window.add(usage_lbl, 2, 1, align="center")
-usage_text = gp.Label(about_window, " 1. Enter a password in the input box \n 2. Click 'Check'\n 3. Follow the feedback to improve your password \n\n Note: This app does not store or save your passwords")
+usage_text = gp.Label(about_window, " 1. Enter a password in the input box \n 2. Click 'Check'\n 3. Follow the feedback to improve your password\n 4. Generate your own secure password! \n\n   This app does not store or save your passwords\n      Breach data powered by HaveIbeenPwned")
 about_window.add(usage_text, 3, 1, align="center")
 
 password_lbl = gp.Label(app, "Password")
@@ -392,7 +383,7 @@ weakness_lbl.font_size = 20
 suggestions_lbl = gp.StyleLabel(app, "Suggestions")
 suggestions_lbl.font_size = 20
 
-display_critical = gp.Label(app, "")
+display_missing_components = gp.Label(app, "")
 display_weakness = gp.Label(app, "")
 display_suggestion = gp.Label(app, "")
 
@@ -418,7 +409,7 @@ app.add(heading_label, 1, 2, align="center")
 app.add(about_button, 1, 3, align="left")
 # row 2
 app.add(password_lbl, 2, 1, align="right")
-app.add(password_input, 2, 2)
+app.add(password_input, 2, 2, fill=True)
 app.add(show_pwd, 2, 3, align="left")
 
 # row 3
@@ -437,7 +428,7 @@ app.add(weakness_lbl, 6, 2, align="center")
 app.add(suggestions_lbl, 6, 3, align="center")
 
 # row 7
-app.add(display_critical, 7, 1, align="center")
+app.add(display_missing_components, 7, 1, align="center")
 app.add(display_weakness, 7, 2, align="center")
 app.add(display_suggestion, 7, 3, align="center")
 
