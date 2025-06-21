@@ -38,7 +38,7 @@ The aplication offers many features to ensure smooth user experience, features i
 
 •	Download and install python 3 (3.12.4 for optimal performance)
 
-•	Clone the repository
+•	Clone the repository using url: https://github.com/Cruz-Leung/pwd_checker.git
 
 •	Navigate to the cloned repository
 
