@@ -21,7 +21,7 @@ I designed this application to raise cybersecurity awareness, striving for a bet
 5. Generate your own secure password!
 
 
-### 🔐 Features 
+### 🔑 Features 
 The aplication offers many features to ensure smooth user experience, features include: 
 
 •	Password Checker: Programmed using professional methods, my password checker allows users to check their password strength, as well as getting instant feedback for security improvements.
