@@ -296,7 +296,7 @@ def show_generated_password(event):
 
 
 def generate_password(): 
-    length = 12
+    length = 14
     available_chars = ''
     available_chars += string.ascii_letters
     available_chars += string.digits * 2 + string.punctuation # double the digits to increase chance of having a number as there are only 10 digits 
